@@ -29,9 +29,9 @@ app.use((req, res, next) => {
 });
 
 import { errorHandler } from "./middlewares/errorHandler.js";
-import userRouter from "./routes/user.router";
-import bookRouter from "./routes/book.router";
-import reviewRouter from "./routes/review.router";
+import userRouter from "./routes/user.router.js";
+import bookRouter from "./routes/book.router.js";
+import reviewRouter from "./routes/review.router.js";
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/books", bookRouter);

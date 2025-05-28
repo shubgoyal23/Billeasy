@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { verifyJwt } from "../middlewares/auth.middleware";
+import { verifyJwt } from "../middlewares/auth.middleware.js";
 import {
   createBook,
   deleteBook,
@@ -8,7 +8,7 @@ import {
   getBooks,
   searchBooks,
   updateBook,
-} from "../controllers/book.controller";
+} from "../controllers/book.controller.js";
 
 const router = Router();
 
