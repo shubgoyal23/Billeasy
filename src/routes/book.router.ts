@@ -14,8 +14,8 @@ const router = Router();
 
 // public routes
 router.route("/").get(getBooks);
-router.route("/:id").get(getBook);
 router.route("/search").get(searchBooks);
+router.route("/:id").get(getBook);
 
 // secure route
 router.route("/").post(verifyJwt, createBook);

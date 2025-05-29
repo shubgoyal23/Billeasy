@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-import { Book } from "../models/book.model.js";
+import { Book, BookDocument } from "../models/book.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResposne.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -12,7 +11,7 @@ const createBook = asyncHandler(async (req, res) => {
   }
 
   // check if book already exists
-  const checkBook = await Book.findOne({ title, author: req.user?._id });
+  const checkBook = await Book.findOne({ title, authorId: req.user?._id });
   if (checkBook) {
     throw new ApiError(403, "Book with same title is already registered");
   }
@@ -21,7 +20,8 @@ const createBook = asyncHandler(async (req, res) => {
   const book = await Book.create({
     title,
     genre,
-    author: req.user?._id,
+    authorId: req.user?._id,
+    authorName: req.user?.firstName + " " + req.user?.lastName,
     publishedDate: new Date(publishedDate),
     description,
   });
@@ -29,8 +29,8 @@ const createBook = asyncHandler(async (req, res) => {
   // check if book is created
   const checkBookCreated = await Book.findOne({
     title,
-    author: req.user?._id,
-  })?.select("_id title author publishedDate description");
+    authorId: req.user?._id,
+  })?.select("_id title authorId authorName publishedDate description");
 
   if (!checkBookCreated) {
     throw new ApiError(500, "Book creation failed");
@@ -43,134 +43,61 @@ const createBook = asyncHandler(async (req, res) => {
 
 // get book with reviews by id
 const getBook = asyncHandler(async (req, res) => {
-  const { limit = 10, offset = 0 } = req.body;
   const { id } = req.params;
   if (!id) {
     throw new ApiError(401, "book id is required");
   }
 
-  const bookWithReviews = await Book.aggregate([
-    {
-      $match: {
-        _id: id,
-      },
-    },
-    {
-      $lookup: {
-        from: "User",
-        localField: "author",
-        foreignField: "_id",
-        as: "author",
-      },
-    },
-    {
-      $unwind: {
-        path: "$author",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $lookup: {
-        from: "Review",
-        let: { bookId: "$_id" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$book", "$$bookId"] } } },
-          { $sort: { createdAt: -1 } },
-          { $skip: parseInt(offset) },
-          { $limit: parseInt(limit) },
-        ],
-        as: "reviews",
-      },
-    },
-    {
-      $project: {
-        _id: 1,
-        title: 1,
-        genre: 1,
-        author: {
-          _id: "$author._id",
-          firstName: "$author.firstName",
-          lastName: "$author.lastName",
-        },
-        publishedDate: 1,
-        description: 1,
-        reviews: 1,
-      },
-    },
-  ]);
-
-  if (!bookWithReviews || bookWithReviews.length === 0) {
+  const book = await Book.findById(id);
+  if (!book) {
     throw new ApiError(403, "Book not found");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, bookWithReviews, "Book fetched successfully"));
+    .json(new ApiResponse(200, book, "Book fetched successfully"));
 });
 
 // get all books
 const getBooks = asyncHandler(async (req, res) => {
-  const { limit = 10, offset = 0 } = req.body;
+  const { limit = 10, page = 1 } = req.body;
 
-  const bookWithReviews = await Book.aggregate([
-    {
-      $match: {
-        active: true,
-      },
-    },
-    {
-      $lookup: {
-        from: "User",
-        localField: "author",
-        foreignField: "_id",
-        as: "author",
-      },
-    },
-    {
-      $unwind: {
-        path: "$author",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $limit: parseInt(limit),
-    },
-    {
-      $skip: parseInt(offset),
-    },
-    {
-      $project: {
-        _id: 1,
-        title: 1,
-        genre: 1,
-        author: {
-          _id: "$author._id",
-          firstName: "$author.firstName",
-          lastName: "$author.lastName",
-        },
-        publishedDate: 1,
-        description: 1,
-      },
-    },
-  ]);
+  const totalRecords = await Book.countDocuments({ active: true });
+
+  const bookWithReviews = await Book.find({
+    active: true,
+  })
+    .limit(parseInt(limit))
+    .skip(parseInt(String((page - 1) * limit)));
 
   if (!bookWithReviews || bookWithReviews.length === 0) {
     throw new ApiError(403, "Books not found");
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, bookWithReviews, "Books fetched successfully"));
+  const totalPages = Math.ceil(totalRecords / parseInt(limit));
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        books: bookWithReviews,
+        totalPages,
+        total: totalRecords,
+        page,
+        limit,
+      },
+      "Books fetched successfully",
+    ),
+  );
 });
 
 // search book by title or author
 const searchBooks = asyncHandler(async (req, res) => {
-  const { search } = req.body;
-
+  const { q } = req.query;
   const books = await Book.find({
     $or: [
-      { title: { $regex: search, $options: "i" } },
-      { genre: { $regex: search, $options: "i" } },
+      { title: { $regex: q, $options: "i" } },
+      { authorName: { $regex: q, $options: "i" } },
     ],
   });
 
@@ -191,23 +118,21 @@ const updateBook = asyncHandler(async (req, res) => {
   }
 
   // check if book already exists
-  const checkBook = await Book.findOne({ _id: id, author: req.user?._id });
+  const checkBook = await Book.findOne({ _id: id, authorId: req.user?._id });
   if (!checkBook) {
     throw new ApiError(403, "book not found");
   }
 
+  const updateData = {} as BookDocument;
+
+  if (title !== undefined) updateData.title = title;
+  if (genre !== undefined) updateData.genre = genre;
+  if (publishedDate !== undefined)
+    updateData.publishedDate = new Date(publishedDate);
+  if (description !== undefined) updateData.description = description;
+
   // update book
-  const book = await Book.findByIdAndUpdate(
-    id,
-    {
-      title,
-      genre,
-      author: req.user?._id,
-      publishedDate: new Date(publishedDate),
-      description,
-    },
-    { new: true },
-  );
+  const book = await Book.findByIdAndUpdate(id, updateData, { new: true });
 
   return res
     .status(200)
@@ -224,7 +149,7 @@ const deleteBook = asyncHandler(async (req, res) => {
   // find and delete book
   const delBook = await Book.findOneAndDelete({
     _id: id,
-    author: req.user?._id,
+    authorId: req.user?._id,
   });
   if (!delBook) {
     throw new ApiError(403, "Cannot delete book");
@@ -232,7 +157,7 @@ const deleteBook = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, delBook, "Book deleted successfully"));
+    .json(new ApiResponse(200, {}, "Book deleted successfully"));
 });
 
 export { createBook, getBook, getBooks, searchBooks, updateBook, deleteBook };

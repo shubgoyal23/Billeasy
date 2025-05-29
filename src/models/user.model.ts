@@ -7,7 +7,6 @@ interface IUser {
   firstName: string;
   lastName: string;
   email: string;
-  username: string;
   isActive: boolean;
   picture: string;
   password?: string;
@@ -43,7 +42,6 @@ const userSchema = new Schema<UserDocument>(
       },
     },
     password: { type: String, required: true },
-    username: { type: String, unique: true, required: true },
     refreshToken: { type: String },
     isActive: { type: Boolean, default: true },
     picture: { type: String },

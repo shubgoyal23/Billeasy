@@ -3,7 +3,8 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 // Interface for User properties
 interface IBook {
   title: string;
-  author: mongoose.Schema.Types.ObjectId;
+  authorId: mongoose.Schema.Types.ObjectId;
+  authorName: string;
   genre: string;
   active: boolean;
   publishedDate: Date;
@@ -18,7 +19,8 @@ const bookSchema = new Schema<BookDocument>(
   {
     title: { type: String },
     genre: { type: String },
-    author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    authorName: { type: String },
     active: { type: Boolean, default: true },
     publishedDate: { type: Date },
     description: { type: String },

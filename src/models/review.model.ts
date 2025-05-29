@@ -2,7 +2,8 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 
 // Interface for User properties
 interface IReview {
-  author: mongoose.Schema.Types.ObjectId;
+  authorId: mongoose.Schema.Types.ObjectId;
+  authorName: string;
   book: mongoose.Schema.Types.ObjectId;
   rating: number;
   comment: string;
@@ -14,7 +15,8 @@ export type ReviewDocument = Document & IReview;
 // Mongoose schema
 const reviewSchema = new Schema<ReviewDocument>(
   {
-    author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    authorName: { type: String },
     book: { type: mongoose.Schema.Types.ObjectId, ref: "Book" },
     rating: { type: Number },
     comment: { type: String },

@@ -23,6 +23,8 @@ export const verifyJwt = asyncHandler(async (req, res, next) => {
     if (!user) {
       throw new ApiError(401, "user not found");
     }
+    user.password = undefined;
+    user.refreshToken = undefined;
     req.user = user;
     next();
   } catch (error) {

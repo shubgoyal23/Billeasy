@@ -61,7 +61,6 @@ const registeruser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-
   if (!email || !password) {
     throw new ApiError(401, "Email, and Password is required to Login");
   }
@@ -89,8 +88,7 @@ const loginUser = asyncHandler(async (req, res) => {
     maxAge: 365 * 24 * 60 * 60 * 1000,
   };
 
-  delete finduser.password;
-  delete finduser.refreshToken;
+  finduser.password = undefined;
 
   finduser.refreshToken = refreshToken;
   finduser.accessToken = accessToken;
@@ -170,11 +168,10 @@ const refreshToken = asyncHandler(async (req, res) => {
     user._id.toString(),
   );
 
-  let userData = { ...user };
-  delete userData.password;
+  user.password = undefined;
 
-  userData.accessToken = accessToken;
-  userData.refreshToken = refreshToken;
+  user.accessToken = accessToken;
+  user.refreshToken = refreshToken;
   const options = {
     httpOnly: true,
     secure: true,
@@ -185,7 +182,7 @@ const refreshToken = asyncHandler(async (req, res) => {
     .status(200)
     .cookie("accessToken", accessToken, options)
     .cookie("refreshToken", refreshToken, options)
-    .json(new ApiResponse(200, userData, "Tokens Renewed successfully"));
+    .json(new ApiResponse(200, user, "Tokens Renewed successfully"));
 });
 
 export { registeruser, loginUser, logoutUser, currentUser, refreshToken };
